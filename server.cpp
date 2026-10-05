@@ -1072,7 +1072,33 @@ void handle_connection(
             uint32_t stream_id =
                 read_u32_be(header + 5);
 
+            // ------------------------------------------------
+            // Read payload.
+            // ------------------------------------------------
+
+            std::vector<uint8_t> payload(
+                length
+            );
+
+            if (length > 0)
+            {
+                // Connection closed in the middle of a frame.
+                if (!recv_exact(
+                        client_socket,
+                        payload.data(),
+                        length))
+                {
+                    break;
+                }
+            }
+
+            // ------------------------------------------------
             // The highest bit of stream ID is reserved.
+            //
+            // This check comes AFTER the payload has been read,
+            // so the next frame header is still aligned.
+            // ------------------------------------------------
+
             if (stream_id & 0x80000000u)
             {
                 std::cerr
@@ -1086,23 +1112,6 @@ void handle_connection(
                 );
 
                 continue;
-            }
-
-            // ------------------------------------------------
-            // Read payload.
-            // ------------------------------------------------
-
-            std::vector<uint8_t> payload(
-                length
-            );
-
-            if (length > 0)
-            {
-                recv_exact(
-                    client_socket,
-                    payload.data(),
-                    length
-                );
             }
 
             std::cout
