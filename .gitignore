@@ -1,85 +1,17 @@
-# ============================================================
-# C++ build artifacts
-# ============================================================
-
-# Compiled executables
-observe
+# Compiled programs
+bserve
 bcurl
-
-# Object files
+observe
 *.o
-*.obj
+a.out
 
-# Static/shared libraries
-*.a
-*.so
-*.dll
-*.dylib
-*.lib
+# Files produced while testing
+out.html
+received.bin
+www/test.bin
+www/big.bin
 
-# Debug/build directories
-build/
-bin/
-out/
-
-# ============================================================
-# CMake (if used later)
-# ============================================================
-
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-compile_commands.json
-CTestTestfile.cmake
-_install/
-
-# ============================================================
-# IDE / Editor files
-# ============================================================
-
-# VS Code
+# Editor and OS files
 .vscode/
-
-# Visual Studio
-.vs/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# CLion / JetBrains
 .idea/
-
-# ============================================================
-# Vim / Nano / editor temporary files
-# ============================================================
-
-*.swp
-*.swo
-*.swn
-*.swn
-*~
-.#*
-
-# ============================================================
-# OS generated files
-# ============================================================
-
 .DS_Store
-Thumbs.db
-
-# ============================================================
-# Temporary / log files
-# ============================================================
-
-*.log
-*.tmp
-*.temp
-
-# ============================================================
-# Core dumps
-# ============================================================
-
-core
-core.*
