@@ -1,20 +1,3 @@
-// bcurl - binary HTTP client
-//
-// Usage:  ./bcurl [-v] host:port/path
-// Example: ./bcurl -v localhost:9000/index.html
-//
-// Behaviour:
-//   - builds ONE binary request frame
-//   - reads the response; body goes to stdout
-//   - -v hexdumps every frame to stderr
-//   - exits non-zero on 4xx / 5xx
-//   - never opens a second connection
-//
-// Exit codes:
-//   0  success (status < 400)
-//   1  server replied 4xx / 5xx
-//   2  usage, network or protocol error
-
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstdint>
@@ -28,10 +11,7 @@
 #include <unistd.h>
 #include <vector>
 
-// ------------------------------------------------------------
 // Protocol constants
-// ------------------------------------------------------------
-
 constexpr std::size_t FRAME_HEADER_SIZE = 9;
 
 constexpr uint8_t FRAME_REQUEST          = 0x01;
@@ -58,10 +38,7 @@ static const char* HEADER_NAMES[10] = {
 
 bool g_verbose = false;
 
-// ------------------------------------------------------------
 // Big-endian helpers
-// ------------------------------------------------------------
-
 void put16(std::vector<uint8_t>& b, uint16_t v)
 {
     b.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
@@ -104,10 +81,7 @@ uint32_t get32(const uint8_t* d)
            static_cast<uint32_t>(d[3]);
 }
 
-// ------------------------------------------------------------
 // TCP helpers
-// ------------------------------------------------------------
-
 bool send_all(int fd, const uint8_t* data, std::size_t n)
 {
     std::size_t sent = 0;
@@ -158,10 +132,7 @@ bool recv_exact(int fd, uint8_t* data, std::size_t n)
     return true;
 }
 
-// ------------------------------------------------------------
 // Verbose hexdump
-// ------------------------------------------------------------
-
 const char* frame_type_name(uint8_t t)
 {
     switch (t)
@@ -278,10 +249,7 @@ void dump_frame(
     fprintf(stderr, "\n");
 }
 
-// ------------------------------------------------------------
 // Frame structure
-// ------------------------------------------------------------
-
 struct Frame
 {
     uint8_t type = 0;
@@ -290,10 +258,7 @@ struct Frame
     std::vector<uint8_t> payload;
 };
 
-// ------------------------------------------------------------
 // Send frame
-// ------------------------------------------------------------
-
 bool send_frame(
     int fd,
     uint8_t type,
@@ -345,10 +310,7 @@ bool send_frame(
     );
 }
 
-// ------------------------------------------------------------
 // Receive frame
-// ------------------------------------------------------------
-
 bool receive_frame(int fd, Frame& f)
 {
     uint8_t h[FRAME_HEADER_SIZE];
@@ -366,9 +328,6 @@ bool receive_frame(int fd, Frame& f)
     f.type = h[3];
     f.flags = h[4];
 
-    // IMPORTANT:
-    // Keep the complete 32-bit stream ID.
-    // Do not silently clear the reserved top bit.
     f.stream_id = get32(h + 5);
 
     f.payload.resize(length);
@@ -395,10 +354,7 @@ bool receive_frame(int fd, Frame& f)
     return true;
 }
 
-// ------------------------------------------------------------
 // Request header helper
-// ------------------------------------------------------------
-
 void put_header(
     std::vector<uint8_t>& b,
     uint8_t index,
@@ -423,24 +379,7 @@ void put_header(
     );
 }
 
-// ------------------------------------------------------------
 // Build request
-//
-// Payload:
-//
-//   method(1)
-//   path_len(2)
-//   path
-//   header_count(1)
-//   headers...
-//
-// Known header:
-//
-//   index(1)
-//   value_len(2)
-//   value
-// ------------------------------------------------------------
-
 std::vector<uint8_t> make_request(
     const std::string& path,
     const std::string& host_header)
@@ -488,10 +427,7 @@ std::vector<uint8_t> make_request(
     return p;
 }
 
-// ------------------------------------------------------------
 // Response headers
-// ------------------------------------------------------------
-
 struct RespHeader
 {
     std::string name;
@@ -606,10 +542,7 @@ uint16_t decode_response_headers(
     return status;
 }
 
-// ------------------------------------------------------------
 // Parse host:port/path
-// ------------------------------------------------------------
-
 bool parse_url(
     std::string url,
     std::string& host,
@@ -671,10 +604,7 @@ bool parse_url(
            !port.empty();
 }
 
-// ------------------------------------------------------------
 // Connect
-// ------------------------------------------------------------
-
 int connect_to(
     const std::string& host,
     const std::string& port)
@@ -749,10 +679,7 @@ int connect_to(
     return fd;
 }
 
-// ------------------------------------------------------------
 // Main
-// ------------------------------------------------------------
-
 int main(
     int argc,
     char* argv[])
@@ -802,8 +729,6 @@ int main(
         return 2;
     }
 
-    // IMPORTANT:
-    // This is the ONLY connection the client opens.
     int fd =
         connect_to(
             host,
@@ -813,10 +738,7 @@ int main(
     if (fd < 0)
         return 2;
 
-    // --------------------------------------------------------
-    // Send exactly ONE request frame.
-    // --------------------------------------------------------
-
+    // Send exactly one request frame.
     try
     {
         std::vector<uint8_t> req =
@@ -850,10 +772,7 @@ int main(
         return 2;
     }
 
-    // --------------------------------------------------------
-    // Read response on SAME connection.
-    // --------------------------------------------------------
-
+    // Read response on same connection.
     bool got_headers = false;
     uint16_t status = 0;
 
@@ -873,13 +792,8 @@ int main(
             return 2;
         }
 
-        // ----------------------------------------------------
         // Reserved stream-ID bit.
-        //
         // The top bit must be zero.
-        // We intentionally do NOT mask it away.
-        // ----------------------------------------------------
-
         if (f.stream_id & 0x80000000u)
         {
             std::cerr
@@ -894,10 +808,7 @@ int main(
         if (f.stream_id != STREAM_ID)
             continue;
 
-        // ----------------------------------------------------
         // Response headers.
-        // ----------------------------------------------------
-
         if (f.type == FRAME_RESPONSE_HEADERS)
         {
             std::vector<RespHeader> headers;
@@ -948,10 +859,7 @@ int main(
             }
         }
 
-        // ----------------------------------------------------
         // Response body.
-        // ----------------------------------------------------
-
         else if (f.type == FRAME_RESPONSE_BODY)
         {
             if (!got_headers)
@@ -963,7 +871,7 @@ int main(
                 return 2;
             }
 
-            // Body ONLY goes to stdout.
+            // Body only goes to stdout.
             fwrite(
                 f.payload.data(),
                 1,
@@ -972,22 +880,13 @@ int main(
             );
         }
 
-        // ----------------------------------------------------
         // End frame.
-        // ----------------------------------------------------
-
         else if (f.type == FRAME_END)
         {
             break;
         }
 
-        // ----------------------------------------------------
         // Unknown frame.
-        //
-        // receive_frame() already consumed its complete
-        // payload, therefore it is safe to skip it.
-        // ----------------------------------------------------
-
         else
         {
             if (g_verbose)
